@@ -1,0 +1,34 @@
+# escape=`
+
+FROM microsoft/aspnet:4.6.2
+SHELL ["powershell","-command"]
+
+RUN Invoke-WebRequest -OutFile c:\SqlLocalDB.msi -Uri http://download.microsoft.com/download/8/D/D/8DD7BDBA-CEF7-4D8E-8C16-D9F69527F909/ENU/x64/SqlLocalDB.MSI  
+
+# unattended install using "cmd /S /C" instead of powershell
+RUN ["cmd", "/S", "/C", "c:\\windows\\syswow64\\msiexec", "/i", "c:\\SqlLocalDB.msi", "IACCEPTSQLLOCALDBLICENSETERMS=YES", "/qn"]  
+
+RUN & 'C:\Program Files\Microsoft SQL Server\110\Tools\Binn\sqllocaldb' start "v11.0"  
+
+EXPOSE 8081  
+
+#don't need the default web site (we're in a container!) so remove it.
+#note the backtick is the escape character, allowing us to string commands together in a single docker RUN statement. (we're escaping the carriage return)
+RUN Remove-Website -Name 'Default Web Site'; `
+    md c:\nerd-dinner; `
+    md c:\databases; `
+    New-Website -Name 'nerd-dinner' `
+                -Port 8081 -PhysicalPath 'c:\nerd-dinner' `
+                -ApplicationPool '.NET v4.5'
+
+#set the IIS app pool so it can run SQL 2012 local db
+RUN Import-Module WebAdministration; `
+    Set-ItemProperty 'IIS:\AppPools\.NET v4.5' -Name 'processModel.loadUserProfile' -Value 'True'; `
+    Set-ItemProperty 'IIS:\AppPools\.NET v4.5' -Name 'processModel.setProfileEnvironment' -Value 'True'
+
+#and then open up some config sections for the custom web handlers nerddinner uses
+RUN & c:\windows\system32\inetsrv\appcmd.exe `
+      unlock config `
+      /section:system.webServer/handlers
+
+COPY pd\nerddinner\mvc4\NerdDinner\bin\ c:\  
