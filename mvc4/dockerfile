@@ -34,8 +34,3 @@ RUN & c:\windows\system32\inetsrv\appcmd.exe `
 
 #copy files last so repeated docker builds can rely on cached layers from previous steps
 COPY NerdDinner\PublishedWebSite c:\nerd-dinner
-
-# add remote debugger
-#RUN Invoke-WebRequest -OutFile c:\rtools_setup_x64.exe -Uri http://download.microsoft.com/download/1/2/2/1225c23d-3599-48c9-a314-f7d631f43241/rtools_setup_x64.exe;
-#RUN & 'c:\rtools_setup_x64.exe' /install /quiet
-#EXPOSE 4020, 4021 
